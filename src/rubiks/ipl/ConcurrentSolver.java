@@ -11,7 +11,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class ConcurrentSolver implements MessageUpcall{
     public static final boolean PRINT_SOLUTION = false;
-    private static final Integer MAX_HOPS = 3;
+    private static final Integer MAX_HOPS = 0;
 
     /**
      * Port type used for sending a request to the server
@@ -87,7 +87,7 @@ public class ConcurrentSolver implements MessageUpcall{
     private static Pair<Integer, Integer> solve(Cube cube) {
         // cache used for cube objects. Doing new Cube() for every move
         // overloads the garbage collector
-        CubeCache cache = new CubeCache((int) Math.pow(cube.getSize(), MAX_HOPS));
+        CubeCache cache = new CubeCache(cube.getSize());
         int bound = 0;
         int result = 0;
 
@@ -109,14 +109,16 @@ public class ConcurrentSolver implements MessageUpcall{
 
 
     public void run(Cube cube) throws IbisCreationFailedException, IOException, ClassNotFoundException {
-        CubeCache cubeCache = new CubeCache((int) Math.pow(cube.getSize(), MAX_HOPS));
         myIbis = IbisFactory.createIbis(ibisCapabilities, null,
                 requestPortType, replyPortType);
         IbisIdentifier master = myIbis.registry().elect("Master");
-        jobQueue = new ConcurrentLinkedQueue<Cube>(generateJobs(cube, MAX_HOPS, cubeCache));
+                if (master.equals(myIbis.identifier())) { //  I AM MASTER
+        CubeCache cubeCache = new CubeCache((int) Math.pow(cube.getSize(), MAX_HOPS));
+	jobQueue = new ConcurrentLinkedQueue<Cube>(generateJobs(cube, MAX_HOPS, cubeCache));
         jobsTotal = jobQueue.size();
+	System.out.println("MASTER NODE:  jobs number is <" + jobsTotal + ">");
         startTime = System.currentTimeMillis();
-        if (master.equals(myIbis.identifier())) { //  I AM MASTER
+
             try {
                 masterProc();
             } catch (InterruptedException e) {}
@@ -222,7 +224,7 @@ public class ConcurrentSolver implements MessageUpcall{
         synchronized (jobQueue){
             if(readMessage.messageType == MessageObject.message_id.JOB_STEALING){
                 // Provide slave with one another job
-                response.data = jobQueue.peek();
+                response.data = jobQueue.remove();
                 if(response.data == null)
                     response.messageType = MessageObject.message_id.EMPTY_MESSAGE;
                 SendPort replyPort = myIbis.createSendPort(replyPortType);
