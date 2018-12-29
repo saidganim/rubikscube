@@ -1,0 +1,76 @@
+plugins {
+    id 'java'
+    id 'maven-publish'
+    id 'com.jfrog.bintray' version '1.7.3'
+    id 'com.github.hierynomus.license' version '0.14.0'
+}
+
+allprojects {
+    repositories {
+	jcenter()
+    }
+}
+
+subprojects {
+    if (it.name != 'docs') {
+	apply from: "${rootProject.rootDir}/gradle/common.gradle"
+    }
+}
+
+configure(subprojects.findAll {it.name != 'docs' && it.name != 'examples' && it.name != 'benchmarks'} ) {
+// configure(subprojects.findAll {it.name == 'api' && it.name != 'examples' && it.name != 'benchmarks'} ) {
+    apply plugin: 'maven-publish'
+    apply plugin: 'com.jfrog.bintray'
+
+    publishing {
+	publications {
+	    mavenJava(MavenPublication) {
+		groupId 'nl.junglecomputing.ipl'
+		artifactId archivesBaseName
+		from components.java
+		artifact sourcesJar {
+		    classifier "sources"
+		}
+		artifact javadocJar {
+		    classifier "javadoc"
+		}
+		version version
+	    }
+	}
+    }
+
+    bintray {
+	user = System.getenv('BINTRAY_NAME')
+	key = System.getenv('BINTRAY_APIKEY')
+	publications = ['mavenJava']
+	pkg {
+	    repo = 'JungleComputing-IPL'
+	    name = "$archivesBaseName"
+	    userOrg = "$user"
+	    vcsUrl = 'https://github.com/junglecomputing/ipl.git'
+	    licenses = ['Apache-2.0']
+	}
+    }
+}
+
+defaultTasks 'clean', 'assemble', 'copyDeps', 'pdflatex'
+
+dependencies {
+    compile project(path: 'api')
+    compile project(path: 'compile')
+    compile project(path: 'support')
+    compile project(path: 'util')
+    compile project(path: 'io')
+    compile project(path: 'benchmarks')
+    compile project(path: 'examples')
+    compile project(path: 'impl-nio')
+    compile project(path: 'impl-multi')
+    compile project(path: 'impl-tcp')
+    compile project(path: 'impl-smartsockets')
+    compile project(path: 'impl-stacking-dummy')
+    compile project(path: 'impl-stacking-lrmc')
+}
+
+clean {
+    delete "$rootDir/lib"
+}

@@ -1,0 +1,9 @@
+.gradle
+.classpath
+.settings
+.project
+build
+lib
+docs/javadoc
+*.pdf
+/TODO
