@@ -150,7 +150,7 @@ public class ConcurrentSolver implements MessageUpcall{
         // Sending first JOB_STEALING request
         SendPort sendPort = myIbis.createSendPort(requestPortType);
         sendPort.connect(masterNode, "server");
-        ReceivePort receivePort = myIbis.createReceivePort(replyPortType, "slave port");
+        ReceivePort receivePort = myIbis.createReceivePort(replyPortType, null);
         receivePort.enableConnections();
         WriteMessage request = sendPort.newMessage();
         MessageObject jobRequest = new MessageObject();
@@ -253,32 +253,11 @@ public class ConcurrentSolver implements MessageUpcall{
                     endTime = System.currentTimeMillis();
                     System.out.println("The last job arrived to Master node; Solution Number is <" + solutionsNum + ">; Solutions Step is <" + solutionsStep +
                             ">; Time is <" + (endTime - startTime) + ">" );
-
-                    // Sending finalize messages to slave nodes
-
-                    SendPort sendPort = myIbis.createSendPort(replyPortType);
-                    IbisIdentifier[] joinedIbises = myIbis.registry().joinedIbises();
-                    for (int i = 0; i < joinedIbises.length; i++) {
-                        for (IbisIdentifier joinedIbis : joinedIbises) {
-                            sendPort.connect(joinedIbis, "slave port");
-                        }
-
-                        // if a connection is lost because a Ibis leave while we are
-                        // sending, print the error. The message will still be send to all
-                        // the remaining ibises.
-                        try {
-                            System.err.println("broadcasting finalize message");
-                            WriteMessage boradcast = sendPort.newMessage();
-                            response.messageType = MessageObject.message_id.EMPTY_MESSAGE;
-                            response.data = null;
-                            boradcast.writeObject(response);
-                            boradcast.finish();
-                        } catch (IOException e) {
-                            System.err.println("error when sending message: " + e);
-                        }
+                    try {
+                        Thread.sleep(2000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
                     }
-
-                    sendPort.close();
                     jobQueue.notify();
                 }
 
