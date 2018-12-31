@@ -228,7 +228,7 @@ public class ConcurrentSolver implements MessageUpcall{
         response.messageType = MessageObject.message_id.JOB_CUBE;
         if(requestor == null)
             return;
-        synchronized (jobQueue){
+        synchronized (this){
             if(readMessage.messageType == MessageObject.message_id.JOB_STEALING){
                 // Provide slave with one another job
                 try{
