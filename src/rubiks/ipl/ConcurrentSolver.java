@@ -112,18 +112,20 @@ public class ConcurrentSolver implements MessageUpcall{
         myIbis = IbisFactory.createIbis(ibisCapabilities, null,
                 requestPortType, replyPortType);
         IbisIdentifier master = myIbis.registry().elect("Master");
-                if (master.equals(myIbis.identifier())) { //  I AM MASTER
-        CubeCache cubeCache = new CubeCache((int) Math.pow(cube.getSize(), MAX_HOPS));
-	jobQueue = new ConcurrentLinkedQueue<Cube>(generateJobs(cube, MAX_HOPS, cubeCache));
-        jobsTotal = jobQueue.size();
-	System.out.println("MASTER NODE:  jobs number is <" + jobsTotal + ">");
-        startTime = System.currentTimeMillis();
+        if (master.equals(myIbis.identifier())) { //  I AM MASTER
+            CubeCache cubeCache = new CubeCache((int) Math.pow(cube.getSize(), MAX_HOPS));
+	        jobQueue = new ConcurrentLinkedQueue<Cube>(generateJobs(cube, MAX_HOPS, cubeCache));
+            jobsTotal = jobQueue.size();
+            System.out.println("MASTER NODE:  jobs number is <" + jobsTotal + ">");
+                startTime = System.currentTimeMillis();
 
             try {
                 masterProc();
+                System.out.println("MASTER IS DONE...");
             } catch (InterruptedException e) {}
         } else { // I AM SLAVE
             slaveProc(master);
+            System.out.println("SLAVE IS DONE...");
         }
     }
 
