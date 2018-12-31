@@ -224,9 +224,11 @@ public class ConcurrentSolver implements MessageUpcall{
         synchronized (jobQueue){
             if(readMessage.messageType == MessageObject.message_id.JOB_STEALING){
                 // Provide slave with one another job
-                response.data = jobQueue.remove();
-                if(response.data == null)
+                try{
+                    response.data = jobQueue.remove();
+                } catch(Exception e){
                     response.messageType = MessageObject.message_id.EMPTY_MESSAGE;
+                }
                 SendPort replyPort = myIbis.createSendPort(replyPortType);
                 replyPort.connect(requestor);
                 WriteMessage reply = replyPort.newMessage();
