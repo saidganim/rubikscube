@@ -141,7 +141,7 @@ public class ConcurrentSolver implements MessageUpcall{
             receiver.enableConnections();
             receiver.enableMessageUpcalls();
             while(jobQueue.size() > 0)
-                this.wait();
+                jobQueue.wait();
             try {
                 Thread.sleep(2000);
             } catch (InterruptedException e) {
