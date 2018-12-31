@@ -142,6 +142,11 @@ public class ConcurrentSolver implements MessageUpcall{
             receiver.enableMessageUpcalls();
             while(jobQueue.size() > 0)
                 this.wait();
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -255,11 +260,6 @@ public class ConcurrentSolver implements MessageUpcall{
                     endTime = System.currentTimeMillis();
                     System.out.println("The last job arrived to Master node; Solution Number is <" + solutionsNum + ">; Solutions Step is <" + solutionsStep +
                             ">; Time is <" + (endTime - startTime) + ">" );
-                    try {
-                        Thread.sleep(2000);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
                     jobQueue.notify();
                 }
 
