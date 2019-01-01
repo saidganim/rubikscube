@@ -122,6 +122,12 @@ public class ConcurrentSolver implements MessageUpcall{
             try {
                 masterProc();
                 System.out.println("MASTER IS DONE...");
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                System.out.println("MASTER IS KILLED...");
             } catch (InterruptedException e) {}
         } else { // I AM SLAVE
             slaveProc(master);
@@ -142,11 +148,6 @@ public class ConcurrentSolver implements MessageUpcall{
             receiver.enableMessageUpcalls();
             while(jobQueue.size() > 0)
                 this.wait();
-            try {
-                Thread.sleep(2000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
         }
     }
 
