@@ -14,18 +14,32 @@ public class ConcurrentSolver implements MessageUpcall{
     private static final Integer MAX_HOPS = 0;
 
     /**
-     * Port type used for sending a request to the server
+     * Port type is used for sending a request to the master
      */
     PortType requestPortType = new PortType(PortType.COMMUNICATION_RELIABLE,
             PortType.SERIALIZATION_OBJECT, PortType.RECEIVE_AUTO_UPCALLS,
             PortType.CONNECTION_MANY_TO_ONE);
 
     /**
-     * Port type used for sending a reply back
+     * Port type is used for sending a reply back
      */
     PortType replyPortType = new PortType(PortType.COMMUNICATION_RELIABLE,
             PortType.SERIALIZATION_OBJECT, PortType.RECEIVE_EXPLICIT,
             PortType.CONNECTION_MANY_TO_ONE);
+
+
+    /**
+     * Port type is used for sending new found bound from the master to slave
+     */
+    PortType slaveBroadcastPortType = new PortType(PortType.COMMUNICATION_RELIABLE,
+            PortType.SERIALIZATION_DATA, PortType.RECEIVE_AUTO_UPCALLS,
+            PortType.CONNECTION_ONE_TO_MANY, PortType.CONNECTION_DOWNCALLS);
+
+    /**
+     * Ibis identifier of the master node
+     */
+    IbisIdentifier master = null;
+    private long minimumBound = Integer.MAX_VALUE;
 
     IbisCapabilities ibisCapabilities = new IbisCapabilities(
             IbisCapabilities.ELECTIONS_STRICT);
@@ -45,7 +59,7 @@ public class ConcurrentSolver implements MessageUpcall{
      *            cache of cubes used for new cube objects
      * @return the number of solutions found
      */
-    private static int solutions(Cube cube, CubeCache cache) {
+    private int solutions(Cube cube, CubeCache cache) {
         if (cube.isSolved()) {
             return 1;
         }
@@ -61,6 +75,9 @@ public class ConcurrentSolver implements MessageUpcall{
         int result = 0;
 
         for (Cube child : children) {
+            if(cube.getBound() > minimumBound){
+                return -1; // dynamic pruning the job
+            }
             // recursion step
             int childSolutions = solutions(child, cache);
             if (childSolutions > 0) {
@@ -84,19 +101,21 @@ public class ConcurrentSolver implements MessageUpcall{
      * @param cube
      *            the cube to solve
      */
-    private static Pair<Integer, Integer> solve(Cube cube) {
+    private Pair<Integer, Integer> solve(Cube cube) {
         // cache used for cube objects. Doing new Cube() for every move
         // overloads the garbage collector
         CubeCache cache = new CubeCache(cube.getSize());
         int bound = 0;
         int result = 0;
-
+        cube.dropTwists();
         System.out.print("Bound now:");
 
         while (result == 0) {
             bound++;
             cube.setBound(bound);
-
+            if(bound > minimumBound){
+                return new Pair<Integer, Integer>(Integer.MAX_VALUE, Integer.MAX_VALUE); // pruning the job
+            }
             System.err.print(" " + bound);
             result = solutions(cube, cache);
         }
@@ -104,14 +123,17 @@ public class ConcurrentSolver implements MessageUpcall{
         System.err.println();
         System.out.println("Solving cube possible in " + result + " ways of "
                 + bound + " steps");
-        return new Pair<Integer, Integer>(result, bound);
+        if(result > 0)
+            return new Pair<Integer, Integer>(result, bound);
+        else
+            return new Pair<Integer, Integer>(Integer.MAX_VALUE, Integer.MAX_VALUE); // job is pruned
     }
 
 
     public void run(Cube cube) throws IbisCreationFailedException, IOException, ClassNotFoundException {
         myIbis = IbisFactory.createIbis(ibisCapabilities, null,
                 requestPortType, replyPortType);
-        IbisIdentifier master = myIbis.registry().elect("Master");
+        master = myIbis.registry().elect("Master");
         if (master.equals(myIbis.identifier())) { //  I AM MASTER
             CubeCache cubeCache = new CubeCache((int) Math.pow(cube.getSize(), MAX_HOPS));
 	        jobQueue = new ConcurrentLinkedQueue<Cube>(generateJobs(cube, MAX_HOPS, cubeCache));
@@ -220,52 +242,80 @@ public class ConcurrentSolver implements MessageUpcall{
 
     @Override
     public void upcall(ReadMessage message) throws IOException, ClassNotFoundException {
-        // Notify Master node main thread that all work is done
-        MessageObject readMessage = (MessageObject) message
-                .readObject();
+        MessageObject readMessage = (MessageObject) message.readObject();
         message.finish();
-        ReceivePortIdentifier requestor = readMessage.requestor;
-        MessageObject response = new MessageObject();
-        response.messageType = MessageObject.message_id.JOB_CUBE;
-        if(requestor == null)
-            return;
-        synchronized (this){
-            if(readMessage.messageType == MessageObject.message_id.JOB_STEALING){
-                // Provide slave with one another job
-                try{
-                    response.data = jobQueue.remove();
-                } catch(Exception e){
-                    response.messageType = MessageObject.message_id.EMPTY_MESSAGE;
-                }
-                SendPort replyPort = myIbis.createSendPort(replyPortType);
-                replyPort.connect(requestor);
-                WriteMessage reply = replyPort.newMessage();
-                reply.writeObject((response));
-                reply.finish();
-                replyPort.close();
+        if(master.equals(myIbis.identifier())){ // I am MASTER
+            // Notify Master node main thread that all work is done
+
+            ReceivePortIdentifier requestor = readMessage.requestor;
+            MessageObject response = new MessageObject();
+            response.messageType = MessageObject.message_id.JOB_CUBE;
+            if(requestor == null)
+                return;
+            synchronized (this){
+                if(readMessage.messageType == MessageObject.message_id.JOB_STEALING){
+                    // Provide slave with one another job
+                    try{
+                        response.data = jobQueue.remove();
+                    } catch(Exception e){
+                        response.messageType = MessageObject.message_id.EMPTY_MESSAGE;
+                    }
+                    SendPort replyPort = myIbis.createSendPort(replyPortType);
+                    replyPort.connect(requestor);
+                    WriteMessage reply = replyPort.newMessage();
+                    reply.writeObject((response));
+                    reply.finish();
+                    replyPort.close();
 
 
-            } else if (readMessage.messageType == MessageObject.message_id.JOB_RESULT){
-                Pair<Integer, Integer> res = (Pair<Integer, Integer>)readMessage.data;
-                System.out.println("GOT RESULT (" + res.getKey() + " ; " + res.getValue() + ")");
-                --jobsTotal;
-                if(res.getValue() < solutionsStep){
-                    solutionsNum = res.getKey();
-                    solutionsStep = res.getValue();
-                } else if (res.getValue() == solutionsStep){
-                    solutionsNum += res.getKey();
-                } else {
-                    // do nothing
-                }
-                if(jobQueue.size() == 0 && jobsTotal == 0) {
-                    endTime = System.currentTimeMillis();
-                    System.out.println("The last job arrived to Master node; Solution Number is <" + solutionsNum + ">; Solutions Step is <" + solutionsStep +
-                            ">; Time is <" + (endTime - startTime) + ">" );
-                    this.notify();
+                } else if (readMessage.messageType == MessageObject.message_id.JOB_RESULT){
+                    Pair<Integer, Integer> res = (Pair<Integer, Integer>)readMessage.data;
+                    System.out.println("GOT RESULT (" + res.getKey() + " ; " + res.getValue() + ")");
+                    --jobsTotal;
+                    if(res.getValue() + MAX_HOPS <= solutionsStep){
+                        solutionsStep = res.getValue() + MAX_HOPS;
+                        if (res.getValue() == solutionsStep){
+                            solutionsNum += res.getKey();
+                        } else {
+                            solutionsNum = res.getKey();
+                        }
+
+                        SendPort sendPort = myIbis.createSendPort(slaveBroadcastPortType);
+                        IbisIdentifier[] joinedIbises = myIbis.registry().joinedIbises();
+                        for (IbisIdentifier joinedIbis : joinedIbises) {
+                            sendPort.connect(joinedIbis, "receive port");
+                        }
+                        MessageObject mess = new MessageObject();
+                        mess.messageType = MessageObject.message_id.JOB_INFORM;
+                        mess.data = new Long(solutionsStep);
+                        mess.requestor = null; // don't really need it here
+                        try {
+                            WriteMessage toSend = sendPort.newMessage();
+                            toSend.writeObject(mess);
+                            toSend.finish();
+                        } catch (IOException e) {
+                            System.err.println("error when sending message: " + e);
+                        }
+                        sendPort.lostConnections();
+
+                    } else if (res.getValue() == solutionsStep){
+
+                    } else {
+                        // do nothing
+                    }
+                    if(jobQueue.size() == 0 && jobsTotal == 0) {
+                        endTime = System.currentTimeMillis();
+                        System.out.println("The last job arrived to Master node; Solution Number is <" + solutionsNum + ">; Solutions Step is <" + solutionsStep +
+                                ">; Time is <" + (endTime - startTime) + ">" );
+                        this.notify();
+                    }
+
                 }
 
             }
-
+        } else { // I am SLAVE
+            // Inform message from the slave node that new minimal bound was found
+            minimumBound = (Integer)readMessage.data;
         }
     }
 }

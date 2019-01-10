@@ -239,6 +239,16 @@ public class Cube implements Serializable {
     }
 
     /**
+     * Drop the number of twists
+     *
+     * @return the number of twists
+     */
+    public void dropTwists() {
+        twists = 0;
+    }
+
+
+    /**
      * Get the bound of this cube. Not actually used in this class, but useful
      * in search algorithm.
      *

@@ -11,7 +11,7 @@ import java.io.Serializable;
  * Can possibly contain Job stealing request or returning value from one job execution
  */
 public class MessageObject implements Serializable{
-   enum message_id{ JOB_STEALING, JOB_RESULT, JOB_CUBE, EMPTY_MESSAGE};
+   enum message_id{ JOB_STEALING, JOB_RESULT, JOB_CUBE, JOB_INFORM, EMPTY_MESSAGE};
 
    public message_id messageType = message_id.EMPTY_MESSAGE; // by default
    public Serializable data = null; // by default
@@ -24,6 +24,8 @@ public class MessageObject implements Serializable{
          res.append("JOB_STEALING");
       else if(messageType == message_id.JOB_CUBE)
          res.append("JOB_CUBE");
+      else if(messageType == message_id.JOB_INFORM)
+         res.append("JOB_INFORM");
       else
          res.append("SOLUTIONS_NUM");
       res.append("; data:");
