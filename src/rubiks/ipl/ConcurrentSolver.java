@@ -39,14 +39,14 @@ public class ConcurrentSolver implements MessageUpcall{
      * Ibis identifier of the master node
      */
     IbisIdentifier master = null;
-    private long minimumBound = Integer.MAX_VALUE;
+    private long minimumBound = Integer.MAX_VALUE - MAX_HOPS;
 
     IbisCapabilities ibisCapabilities = new IbisCapabilities(
             IbisCapabilities.ELECTIONS_STRICT);
     private Ibis myIbis = null;
     private Queue<Cube> jobQueue;
     private int solutionsNum = 0;
-    long solutionsStep = Integer.MAX_VALUE;
+    long solutionsStep = Integer.MAX_VALUE - MAX_HOPS;
     long startTime, endTime;
     long jobsTotal = 0;
     /**
