@@ -143,7 +143,7 @@ public class ConcurrentSolver implements MessageUpcall{
 
             try {
                 masterProc();
-                System.out.println("MASTER IS DONE...");
+                System.out.println("MASTER IS DONE with results [" + solutionsStep + ": " + solutionsNum + "]");
                 try {
                     Thread.sleep(2000);
                 } catch (InterruptedException e) {
@@ -255,7 +255,7 @@ public class ConcurrentSolver implements MessageUpcall{
             synchronized (this){
                 if(readMessage.messageType == MessageObject.message_id.JOB_STEALING){
                     // Provide slave with one another job
-                    response.availSolution = solutionsStep;
+                    response.availSolution = solutionsStep - MAX_HOPS;
                     try{
                         response.data = jobQueue.remove();
                     } catch(Exception e){
