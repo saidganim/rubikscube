@@ -280,23 +280,41 @@ public class ConcurrentSolver implements MessageUpcall{
                             solutionsNum = res.getKey();
                         }
 
-                        SendPort sendPort = myIbis.createSendPort(slaveBroadcastPortType);
-                        IbisIdentifier[] joinedIbises = myIbis.registry().joinedIbises();
-                        for (IbisIdentifier joinedIbis : joinedIbises) {
-                            sendPort.connect(joinedIbis, "receive port");
-                        }
-                        MessageObject mess = new MessageObject();
-                        mess.messageType = MessageObject.message_id.JOB_INFORM;
-                        mess.data = new Long(solutionsStep);
-                        mess.requestor = null; // don't really need it here
-                        try {
-                            WriteMessage toSend = sendPort.newMessage();
-                            toSend.writeObject(mess);
-                            toSend.finish();
-                        } catch (IOException e) {
-                            System.err.println("error when sending message: " + e);
-                        }
-                        sendPort.lostConnections();
+                       Thread runbl =  new Thread(){
+                           @Override
+                           public void run() {
+                               super.run();
+                               SendPort sendPort = null;
+                               try {
+                                   sendPort = myIbis.createSendPort(slaveBroadcastPortType);
+                               } catch (IOException e) {
+                                   e.printStackTrace();
+                                   return;
+                               }
+                               IbisIdentifier[] joinedIbises = myIbis.registry().joinedIbises();
+                               for (IbisIdentifier joinedIbis : joinedIbises) {
+                                   try {
+                                       sendPort.connect(joinedIbis, "receive port");
+                                   } catch (ConnectionFailedException e) {
+                                       e.printStackTrace();
+                                   }
+                               }
+                               MessageObject mess = new MessageObject();
+                               mess.messageType = MessageObject.message_id.JOB_INFORM;
+                               mess.data = new Long(solutionsStep);
+                               mess.requestor = null; // don't really need it here
+                               try {
+                                   WriteMessage toSend = sendPort.newMessage();
+                                   toSend.writeObject(mess);
+                                   toSend.finish();
+                               } catch (IOException e) {
+                                   System.err.println("error when sending message: " + e);
+                               }
+                               sendPort.lostConnections();
+                           }
+                       };
+
+                        runbl.start();
 
                     } else if (res.getValue() == solutionsStep){
 
