@@ -273,7 +273,7 @@ public class ConcurrentSolver implements MessageUpcall{
                     Pair<Integer, Integer> res = (Pair<Integer, Integer>)readMessage.data;
                     System.out.println("GOT RESULT (" + res.getKey() + " ; " + res.getValue() + ")");
                     --jobsTotal;
-                    if(res.getValue() + MAX_HOPS <= solutionsStep){
+                    if(res.getValue() > 0 && (res.getValue() + MAX_HOPS <= solutionsStep)){
                         solutionsStep = res.getValue() + MAX_HOPS;
                         if (res.getValue() == solutionsStep){
                             solutionsNum += res.getKey();
