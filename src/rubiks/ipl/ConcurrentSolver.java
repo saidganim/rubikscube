@@ -207,6 +207,7 @@ public class ConcurrentSolver implements MessageUpcall{
 
             // Solving current task
             Cube cube = (Cube)job.data;
+            minimumBound = job.availSolution;
             Pair<Integer, Integer> res = solve(cube);
             System.out.println("SLAVE NODE  SOLVED ONE "  + res.getKey() + " :: " + res.getValue());
             localSolutionResult.data = res;
@@ -255,6 +256,7 @@ public class ConcurrentSolver implements MessageUpcall{
             synchronized (this){
                 if(readMessage.messageType == MessageObject.message_id.JOB_STEALING){
                     // Provide slave with one another job
+                    response.availSolution = minimumBound;
                     try{
                         response.data = jobQueue.remove();
                     } catch(Exception e){
@@ -280,41 +282,23 @@ public class ConcurrentSolver implements MessageUpcall{
                             solutionsNum = res.getKey();
                         }
 
-                       Thread runbl =  new Thread(){
-                           @Override
-                           public void run() {
-                               super.run();
-                               SendPort sendPort = null;
-                               try {
-                                   sendPort = myIbis.createSendPort(slaveBroadcastPortType);
-                               } catch (IOException e) {
-                                   e.printStackTrace();
-                                   return;
-                               }
-                               IbisIdentifier[] joinedIbises = myIbis.registry().joinedIbises();
-                               for (IbisIdentifier joinedIbis : joinedIbises) {
-                                   try {
-                                       sendPort.connect(joinedIbis, "receive port");
-                                   } catch (ConnectionFailedException e) {
-                                       e.printStackTrace();
-                                   }
-                               }
-                               MessageObject mess = new MessageObject();
-                               mess.messageType = MessageObject.message_id.JOB_INFORM;
-                               mess.data = new Long(solutionsStep);
-                               mess.requestor = null; // don't really need it here
-                               try {
-                                   WriteMessage toSend = sendPort.newMessage();
-                                   toSend.writeObject(mess);
-                                   toSend.finish();
-                               } catch (IOException e) {
-                                   System.err.println("error when sending message: " + e);
-                               }
-                               sendPort.lostConnections();
-                           }
-                       };
-
-                        runbl.start();
+//                        SendPort sendPort = myIbis.createSendPort(slaveBroadcastPortType);
+//                        IbisIdentifier[] joinedIbises = myIbis.registry().joinedIbises();
+//                        for (IbisIdentifier joinedIbis : joinedIbises) {
+//                            sendPort.connect(joinedIbis, "receive port");
+//                        }
+//                        MessageObject mess = new MessageObject();
+//                        mess.messageType = MessageObject.message_id.JOB_INFORM;
+//                        mess.data = new Long(solutionsStep);
+//                        mess.requestor = null; // don't really need it here
+//                        try {
+//                            WriteMessage toSend = sendPort.newMessage();
+//                            toSend.writeObject(mess);
+//                            toSend.finish();
+//                        } catch (IOException e) {
+//                            System.err.println("error when sending message: " + e);
+//                        }
+//                        sendPort.lostConnections();
 
                     } else if (res.getValue() == solutionsStep){
 
