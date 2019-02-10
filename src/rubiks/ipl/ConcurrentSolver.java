@@ -114,7 +114,7 @@ public class ConcurrentSolver implements MessageUpcall{
             bound++;
             cube.setBound(bound);
             if(bound > minimumBound){
-                return new Pair<Integer, Integer>(Integer.MAX_VALUE, Integer.MAX_VALUE); // pruning the job
+                return new Pair<Integer, Integer>(0, 0); // pruning the job
             }
             System.err.print(" " + bound);
             result = solutions(cube, cache);
@@ -126,7 +126,7 @@ public class ConcurrentSolver implements MessageUpcall{
         if(result > 0)
             return new Pair<Integer, Integer>(result, bound);
         else
-            return new Pair<Integer, Integer>(Integer.MAX_VALUE, Integer.MAX_VALUE); // job is pruned
+            return new Pair<Integer, Integer>(0, 0); // job is pruned
     }
 
 
