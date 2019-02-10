@@ -335,7 +335,7 @@ public class Cube implements Serializable {
                             + size);
         }
 
-        Cube result = cache.get();
+        Cube result = new Cube(this.size);
         this.copyTo(result);
 
         switch (axis) {
