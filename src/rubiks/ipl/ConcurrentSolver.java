@@ -11,7 +11,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class ConcurrentSolver implements MessageUpcall{
     public static final boolean PRINT_SOLUTION = false;
-    private static final Integer MAX_HOPS = 0;
+    private static final Integer MAX_HOPS = 1;
 
     /**
      * Port type is used for sending a request to the master
@@ -245,7 +245,6 @@ public class ConcurrentSolver implements MessageUpcall{
     public void upcall(ReadMessage message) throws IOException, ClassNotFoundException {
         MessageObject readMessage = (MessageObject) message.readObject();
         message.finish();
-        if(master.equals(myIbis.identifier())){ // I am MASTER
             // Notify Master node main thread that all work is done
 
             ReceivePortIdentifier requestor = readMessage.requestor;
@@ -256,7 +255,7 @@ public class ConcurrentSolver implements MessageUpcall{
             synchronized (this){
                 if(readMessage.messageType == MessageObject.message_id.JOB_STEALING){
                     // Provide slave with one another job
-                    response.availSolution = minimumBound;
+                    response.availSolution = solutionsStep;
                     try{
                         response.data = jobQueue.remove();
                     } catch(Exception e){
@@ -299,7 +298,6 @@ public class ConcurrentSolver implements MessageUpcall{
 //                            System.err.println("error when sending message: " + e);
 //                        }
 //                        sendPort.lostConnections();
-
                     } else if (res.getValue() == solutionsStep){
 
                     } else {
@@ -315,9 +313,5 @@ public class ConcurrentSolver implements MessageUpcall{
                 }
 
             }
-        } else { // I am SLAVE
-            // Inform message from the slave node that new minimal bound was found
-            minimumBound = (Integer)readMessage.data;
-        }
     }
 }
